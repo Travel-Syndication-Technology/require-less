@@ -1,4 +1,4 @@
-define(['require', './normalize'], function(req, normalize) {
+define(['require', './normalize', './less-renderer'], function(req, normalize, LessRenderer) {
   var lessAPI = {};
 
   var isWindows = !!process.platform.match(/^win/);
@@ -100,43 +100,19 @@ define(['require', './normalize'], function(req, normalize) {
     cfg.async = false;
     cfg.syncImport = true;
 
-    //make it compatible with v1 and v2
-    var generation = less.version[0];
-    var renderer;
-    var cssGetter;
-    if (generation === 1) {
-      //v1, use parser and toCSS
-      var parser = new less.Parser(cfg);
-      renderer = parser.parse.bind(parser);
-      cssGetter = function (tree) {
-        return tree.toCSS(config.less);
-      };
-    } else if (generation === 2) {
-      //v2, use render and output
-      renderer = function (input, cb) {
-        less.render(input, cfg, cb);
-      };
-      cssGetter = function (output) {
-        return output.css;
-      };
-    } else {
-      var err = 'unsuported less version ' + less.version.join('.');
-      console.log(err);
-      return load.error(err);
-    }
+    var lessRenderer = new LessRenderer(less);
 
-    renderer('@import (multiple) "' + path.relative(baseUrl, fileUrl) + '";', function (err, output) {
+    lessRenderer.render(path.relative(baseUrl, fileUrl), cfg, function(err, output){
       if (err) {
         console.log(err + ' at ' + path.relative(baseUrl, err.filename) + ', line ' + err.line);
         return load.error(err);
       }
-      var css = cssGetter(output);
       // normalize all imports relative to the siteRoot, itself relative to the output file / output dir
-      lessBuffer[name] = normalize(css, fileUrl, siteRoot);
+      lessBuffer[name] = normalize(output.css, fileUrl, siteRoot);
 
       load();
     });
-  }
+  };
 
   var layerBuffer = [];
 

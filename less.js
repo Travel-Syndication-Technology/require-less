@@ -1,14 +1,14 @@
 define(['require'], function(require) {
-  
+
   var lessAPI = {};
-  
+
   lessAPI.pluginBuilder = './less-builder';
-  
+
   if (typeof window == 'undefined') {
     lessAPI.load = function(n, r, load) { load(); }
     return lessAPI;
   }
-  
+
   lessAPI.normalize = function(name, normalize) {
     if (name.substr(name.length - 5, 5) == '.less')
       name = name.substr(0, name.length - 5);
@@ -17,7 +17,7 @@ define(['require'], function(require) {
 
     return name;
   }
-  
+
   var head = document.getElementsByTagName('head')[0];
 
   var base = document.getElementsByTagName('base');
@@ -45,24 +45,21 @@ define(['require'], function(require) {
     window.less = config.less || {};
     window.less.env = 'development';
 
-    require(['./lessc', './normalize'], function(lessc, normalize) {
+    require(['./less-renderer', './lessc', './normalize'], function(LessRenderer, lessc, normalize) {
+      var fileUrl = req.toUrl(lessId + '.less'),
+          lessRenderer = new LessRenderer(lessc);
 
-      var fileUrl = req.toUrl(lessId + '.less');
-      fileUrl = normalize.absoluteURI(fileUrl, pagePath);
-
-      var parser = new lessc.Parser(window.less);
-
-      parser.parse('@import (multiple) "' + fileUrl + '";', function(err, tree) {
-        if (err)
-          return load.error(err);
-
-        lessAPI.inject(normalize(tree.toCSS(config.less), fileUrl, pagePath));
-
-        setTimeout(load, 7);
-      }, window.less);
+      lessRenderer.render(normalize.absoluteURI(fileUrl, pagePath), window.less, function(err, output){
+        if (err) {
+          load.error(err);
+        } else {
+          lessAPI.inject(normalize(output.css, fileUrl, pagePath));
+          setTimeout(load, 7);
+        }
+      });
 
     });
-  }
-  
+  };
+
   return lessAPI;
 });
